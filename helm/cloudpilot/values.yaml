@@ -1,0 +1,49 @@
+image:
+  repository: salmonstone/cloudpilot
+  tag: latest
+  pullPolicy: Always
+
+replicaCount: 2
+
+service:
+  type: ClusterIP
+  port: 8000
+
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/ssl-redirect: 'true'
+  hosts:
+    - host: cloudpilot.online
+      paths:
+        - path: /api
+          pathType: Prefix
+        - path: /health
+          pathType: Prefix
+        - path: /metrics
+          pathType: Prefix
+  tls:
+    - secretName: cloudpilot-tls
+      hosts: [cloudpilot.online]
+
+resources:
+  requests: { cpu: 150m, memory: 256Mi }
+  limits:   { cpu: 600m, memory: 768Mi }
+
+hpa:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 6
+  targetCPUUtilizationPercentage: 60
+  targetMemoryUtilizationPercentage: 70
+
+env:
+  - name: GROQ_API_KEY
+    valueFrom:
+      secretKeyRef:
+        name: cloudpilot-secrets
+        key: GROQ_API_KEY
+  - name: AWS_DEFAULT_REGION
+    value: ap-south-1
