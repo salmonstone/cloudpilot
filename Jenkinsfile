@@ -95,18 +95,23 @@ pipeline {
       }
     }
 
-    stage('ELK Stack') {
-      steps {
-        sh '''
-          kubectl apply -f elk/01-elasticsearch.yaml -n logging
-          kubectl wait --for=condition=ready pod -l app=elasticsearch \
-            -n logging --timeout=180s
-          kubectl apply -f elk/02-logstash.yaml    -n logging
-          kubectl apply -f elk/03-kibana.yaml      -n logging
-          kubectl apply -f elk/04-filebeat.yaml    -n logging
-        '''
-      }
-    }
+   stage('ELK Stack') {
+  steps {
+    sh '''
+      # Only deploy if not already running
+      if ! kubectl get statefulset elasticsearch -n logging 2>/dev/null; then
+        kubectl apply -f elk/01-elasticsearch.yaml -n logging
+        kubectl wait --for=condition=ready pod -l app=elasticsearch \
+          -n logging --timeout=180s
+      else
+        echo "Elasticsearch already running - skipping"
+      fi
+      kubectl apply -f elk/02-logstash.yaml    -n logging || true
+      kubectl apply -f elk/03-kibana.yaml      -n logging || true
+      kubectl apply -f elk/04-filebeat.yaml    -n logging || true
+    '''
+  }
+}
 
     stage('ArgoCD + Monitoring') {
       steps {
