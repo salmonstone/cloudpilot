@@ -4,16 +4,44 @@ metadata:
   name: {{ .Release.Name }}-ingress
   namespace: {{ .Release.Namespace }}
   annotations:
-    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
 spec:
   ingressClassName: nginx
   rules:
   - http:
       paths:
-      - path: /
+      - path: /api
         pathType: Prefix
         backend:
           service:
             name: {{ .Release.Name }}-backend
             port:
               number: 8000
+      - path: /health
+        pathType: Prefix
+        backend:
+          service:
+            name: {{ .Release.Name }}-backend
+            port:
+              number: 8000
+      - path: /metrics
+        pathType: Prefix
+        backend:
+          service:
+            name: {{ .Release.Name }}-backend
+            port:
+              number: 8000
+      - path: /docs
+        pathType: Prefix
+        backend:
+          service:
+            name: {{ .Release.Name }}-backend
+            port:
+              number: 8000
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: {{ .Release.Name }}-frontend
+            port:
+              number: 80

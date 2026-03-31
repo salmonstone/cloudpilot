@@ -3,34 +3,20 @@ image:
   tag: latest
   pullPolicy: Always
 
+frontend:
+  image:
+    repository: salmonstone/cloudpilot-frontend
+    tag: latest
+
 replicaCount: 2
 
 service:
   type: ClusterIP
   port: 8000
 
-ingress:
-  enabled: true
-  className: nginx
-  annotations:
-    cert-manager.io/cluster-issuer: letsencrypt-prod
-    nginx.ingress.kubernetes.io/ssl-redirect: 'true'
-  hosts:
-    - host: pilotcost.online
-      paths:
-        - path: /api
-          pathType: Prefix
-        - path: /health
-          pathType: Prefix
-        - path: /metrics
-          pathType: Prefix
-  tls:
-    - secretName: cloudpilot-tls
-      hosts: [pilotcost.online]
-
 resources:
-  requests: { cpu: 150m, memory: 256Mi }
-  limits:   { cpu: 600m, memory: 768Mi }
+  requests: {cpu: 150m, memory: 256Mi}
+  limits:   {cpu: 600m, memory: 768Mi}
 
 hpa:
   enabled: true

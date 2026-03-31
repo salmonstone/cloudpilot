@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-frontend
+  namespace: {{ .Release.Namespace }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: cloudpilot-frontend}
+  template:
+    metadata:
+      labels: {app: cloudpilot-frontend}
+    spec:
+      containers:
+      - name: frontend
+        image: {{ .Values.frontend.image.repository }}:{{ .Values.frontend.image.tag }}
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 80
+        resources:
+          requests: {cpu: 50m, memory: 64Mi}
+          limits:   {cpu: 200m, memory: 128Mi}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-frontend
+  namespace: {{ .Release.Namespace }}
+spec:
+  selector: {app: cloudpilot-frontend}
+  ports:
+  - port: 80
+    targetPort: 80

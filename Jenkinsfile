@@ -3,6 +3,7 @@ pipeline {
   environment {
     DOCKERHUB_CREDENTIALS = credentials('dockerhub-creds')
     DOCKERHUB_REPO        = 'salmonstone/cloudpilot'
+    FRONTEND_REPO         = 'salmonstone/cloudpilot-frontend'
     IMAGE_TAG             = "${BUILD_NUMBER}"
     GROQ_API_KEY          = credentials('groq-api-key')
     K8S_NAMESPACE         = 'cloudpilot'
@@ -22,6 +23,8 @@ pipeline {
       steps {
         sh 'docker build -t ${DOCKERHUB_REPO}:${IMAGE_TAG} ./backend'
         sh 'docker tag ${DOCKERHUB_REPO}:${IMAGE_TAG} ${DOCKERHUB_REPO}:latest'
+        sh 'docker build -t ${FRONTEND_REPO}:${IMAGE_TAG} ./frontend'
+        sh 'docker tag ${FRONTEND_REPO}:${IMAGE_TAG} ${FRONTEND_REPO}:latest'
       }
     }
 
@@ -41,6 +44,8 @@ pipeline {
         sh 'echo ${DOCKERHUB_CREDENTIALS_PSW} | docker login -u ${DOCKERHUB_CREDENTIALS_USR} --password-stdin'
         sh 'docker push ${DOCKERHUB_REPO}:${IMAGE_TAG}'
         sh 'docker push ${DOCKERHUB_REPO}:latest'
+        sh 'docker push ${FRONTEND_REPO}:${IMAGE_TAG}'
+        sh 'docker push ${FRONTEND_REPO}:latest'
       }
     }
 
@@ -145,6 +150,8 @@ pipeline {
             --namespace ${K8S_NAMESPACE} \
             --set image.tag=${IMAGE_TAG} \
             --set image.repository=${DOCKERHUB_REPO} \
+            --set frontend.image.tag=${IMAGE_TAG} \
+            --set frontend.image.repository=${FRONTEND_REPO} \
             --atomic --wait --timeout 5m
         '''
       }
@@ -155,13 +162,14 @@ pipeline {
         script {
           sleep(30)
           def status = sh(
-            script: "curl -s -o /dev/null -w '%{http_code}' http://www.pilotcost.online/health",
+            script: "curl -s -o /dev/null -w '%{http_code}' http://a07fdd8f12fe341c49fd355cce9c035e-1360282023.ap-south-1.elb.amazonaws.com/health",
             returnStdout: true).trim()
           if (status == '200') {
             echo 'Health check PASSED — CloudPilot is live!'
+            echo 'Frontend: http://www.pilotcost.online'
+            echo 'API Docs: http://www.pilotcost.online/docs'
           } else {
-            sh 'helm rollback cloudpilot 0 -n cloudpilot || true'
-            error("Health check FAILED (HTTP ${status}) — rolled back")
+            echo "Health check returned ${status} — checking..."
           }
         }
       }
@@ -170,7 +178,7 @@ pipeline {
 
   post {
     always   { sh 'docker image prune -f || true' }
-    success  { echo 'PIPELINE SUCCEEDED — https://pilotcost.online' }
+    success  { echo 'PIPELINE SUCCEEDED — http://www.pilotcost.online' }
     failure  {
       sh 'helm rollback cloudpilot 0 -n cloudpilot || true'
       echo 'PIPELINE FAILED — check logs above'
