@@ -139,7 +139,7 @@ pipeline {
         script {
           sleep(30)
           def status = sh(
-            script: "curl -s -o /dev/null -w '%{http_code}' https://cloudpilot.online/health",
+            script: "curl -s -o /dev/null -w '%{http_code}' https://pilotcost.online/health",
             returnStdout: true).trim()
           if (status == '200') {
             echo 'Health check PASSED — deployment successful!'
@@ -154,7 +154,7 @@ pipeline {
 
   post {
     always   { sh 'docker image prune -f || true' }
-    success  { echo 'PIPELINE SUCCEEDED — CloudPilot is live!' }
+    success  { echo 'PIPELINE SUCCEEDED — CloudPilot is live at https://pilotcost.online' }
     failure  {
       sh 'helm rollback cloudpilot 0 -n cloudpilot || true'
       echo 'PIPELINE FAILED — rolled back. Check logs above.'
