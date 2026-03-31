@@ -95,34 +95,45 @@ pipeline {
       }
     }
 
-   stage('ELK Stack') {
-  steps {
-    sh '''
-      # Only deploy if not already running
-      if ! kubectl get statefulset elasticsearch -n logging 2>/dev/null; then
-        kubectl apply -f elk/01-elasticsearch.yaml -n logging
-        kubectl wait --for=condition=ready pod -l app=elasticsearch \
-          -n logging --timeout=180s
-      else
-        echo "Elasticsearch already running - skipping"
-      fi
-      kubectl apply -f elk/02-logstash.yaml    -n logging || true
-      kubectl apply -f elk/03-kibana.yaml      -n logging || true
-      kubectl apply -f elk/04-filebeat.yaml    -n logging || true
-    '''
-  }
-}
+    stage('ELK Stack') {
+      steps {
+        sh '''
+          if ! kubectl get statefulset elasticsearch -n logging 2>/dev/null; then
+            kubectl apply -f elk/01-elasticsearch.yaml -n logging
+            kubectl wait --for=condition=ready pod -l app=elasticsearch \
+              -n logging --timeout=180s
+          else
+            echo "Elasticsearch already running - skipping"
+          fi
+          kubectl apply -f elk/02-logstash.yaml -n logging || true
+          kubectl apply -f elk/03-kibana.yaml   -n logging || true
+          kubectl apply -f elk/04-filebeat.yaml -n logging || true
+        '''
+      }
+    }
 
     stage('ArgoCD + Monitoring') {
       steps {
         sh '''
+          set +e
           kubectl apply -n argocd \
             -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
-          helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+          set -e
+
+          helm repo add prometheus-community \
+            https://prometheus-community.github.io/helm-charts || true
           helm repo update
-          helm upgrade --install prometheus prometheus-community/kube-prometheus-stack \
-            --namespace monitoring --wait
-          kubectl apply -f k8s/monitoring/alertmanager-rules.yaml -n monitoring
+
+          if kubectl get deployment prometheus-grafana -n monitoring 2>/dev/null; then
+            echo "Prometheus already running - skipping"
+          else
+            helm upgrade --install prometheus \
+              prometheus-community/kube-prometheus-stack \
+              --namespace monitoring --wait --timeout 8m
+          fi
+
+          kubectl apply -f k8s/monitoring/alertmanager-rules.yaml \
+            -n monitoring || true
         '''
       }
     }
@@ -147,9 +158,9 @@ pipeline {
             script: "curl -s -o /dev/null -w '%{http_code}' https://pilotcost.online/health",
             returnStdout: true).trim()
           if (status == '200') {
-            echo 'Health check PASSED — deployment successful!'
+            echo 'Health check PASSED — CloudPilot is live!'
           } else {
-            sh 'helm rollback cloudpilot 0 -n cloudpilot'
+            sh 'helm rollback cloudpilot 0 -n cloudpilot || true'
             error("Health check FAILED (HTTP ${status}) — rolled back")
           }
         }
@@ -159,10 +170,10 @@ pipeline {
 
   post {
     always   { sh 'docker image prune -f || true' }
-    success  { echo 'PIPELINE SUCCEEDED — CloudPilot is live at https://pilotcost.online' }
+    success  { echo 'PIPELINE SUCCEEDED — https://pilotcost.online' }
     failure  {
       sh 'helm rollback cloudpilot 0 -n cloudpilot || true'
-      echo 'PIPELINE FAILED — rolled back. Check logs above.'
+      echo 'PIPELINE FAILED — check logs above'
     }
   }
 }
