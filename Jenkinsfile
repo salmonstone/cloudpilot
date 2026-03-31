@@ -155,7 +155,7 @@ pipeline {
         script {
           sleep(30)
           def status = sh(
-            script: "curl -s -o /dev/null -w '%{http_code}' https://pilotcost.online/health",
+            script: "curl -s -o /dev/null -w '%{http_code}' http://www.pilotcost.online/health",
             returnStdout: true).trim()
           if (status == '200') {
             echo 'Health check PASSED — CloudPilot is live!'
