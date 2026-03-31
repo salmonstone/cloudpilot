@@ -1,8 +1,17 @@
 terraform {
   required_version = ">= 1.5.0"
+
   required_providers {
-    aws = { source = "hashicorp/aws", version = "~> 5.0" }
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.0"
+    }
+    archive = {
+      source  = "hashicorp/archive"
+      version = "~> 2.4"
+    }
   }
+
   backend "s3" {
     bucket = "cloudpilot-terraform-state"
     key    = "cloudpilot/terraform.tfstate"
@@ -10,27 +19,34 @@ terraform {
   }
 }
 
-provider "aws" { region = var.aws_region }
+provider "aws" {
+  region = var.aws_region
+}
 
 # ── VPC ────────────────────────────────────────
 module "vpc" {
   source  = "terraform-aws-modules/vpc/aws"
   version = "5.0.0"
-  name    = "${var.project_name}-vpc"
-  cidr    = var.vpc_cidr
+
+  name = "${var.project_name}-vpc"
+  cidr = var.vpc_cidr
+
   azs             = var.availability_zones
   private_subnets = var.private_subnet_cidrs
   public_subnets  = var.public_subnet_cidrs
+
   enable_nat_gateway   = true
   single_nat_gateway   = true
   enable_dns_hostnames = true
+
   public_subnet_tags = {
-    "kubernetes.io/role/elb"                      = "1"
-    "kubernetes.io/cluster/${var.cluster_name}"   = "shared"
+    "kubernetes.io/role/elb"                    = "1"
+    "kubernetes.io/cluster/${var.cluster_name}" = "shared"
   }
+
   private_subnet_tags = {
-    "kubernetes.io/role/internal-elb"             = "1"
-    "kubernetes.io/cluster/${var.cluster_name}"   = "shared"
+    "kubernetes.io/role/internal-elb"           = "1"
+    "kubernetes.io/cluster/${var.cluster_name}" = "shared"
   }
 }
 
@@ -38,9 +54,11 @@ module "vpc" {
 module "eks" {
   source  = "terraform-aws-modules/eks/aws"
   version = "19.21.0"
+
   cluster_name                   = var.cluster_name
   cluster_version                = "1.29"
   cluster_endpoint_public_access = true
+
   vpc_id     = module.vpc.vpc_id
   subnet_ids = module.vpc.private_subnets
 
@@ -55,7 +73,7 @@ module "eks" {
   }
 }
 
-# ── DYNAMODB TABLES ────────────────────────────
+# ── DYNAMODB ───────────────────────────────────
 resource "aws_dynamodb_table" "costs" {
   name         = "cloudpilot-costs"
   billing_mode = "PAY_PER_REQUEST"
@@ -66,6 +84,7 @@ resource "aws_dynamodb_table" "costs" {
     name = "id"
     type = "S"
   }
+
   attribute {
     name = "timestamp"
     type = "S"
@@ -93,27 +112,31 @@ resource "aws_dynamodb_table" "audit" {
     name = "id"
     type = "S"
   }
+
   attribute {
     name = "timestamp"
     type = "S"
   }
 }
 
-# ── SQS QUEUE ──────────────────────────────────
+# ── SQS ────────────────────────────────────────
 resource "aws_sqs_queue" "cost_data" {
   name                      = "cost-data-queue"
   message_retention_seconds = 345600
 }
 
-# ── LAMBDA ─────────────────────────────────────
+# ── IAM FOR LAMBDA ─────────────────────────────
 resource "aws_iam_role" "lambda_exec" {
   name = "cloudpilot-lambda-role"
+
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [{
-      Action    = "sts:AssumeRole"
-      Effect    = "Allow"
-      Principal = { Service = "lambda.amazonaws.com" }
+      Action = "sts:AssumeRole"
+      Effect = "Allow"
+      Principal = {
+        Service = "lambda.amazonaws.com"
+      }
     }]
   })
 }
@@ -138,13 +161,23 @@ resource "aws_iam_role_policy_attachment" "lambda_ce" {
   policy_arn = "arn:aws:iam::aws:policy/AWSBillingReadOnlyAccess"
 }
 
+# ── AUTO ZIP LAMBDA (FIXED) ────────────────────
+data "archive_file" "cost_collector_zip" {
+  type        = "zip"
+  source_dir  = "${path.module}/../../lambdas/cost_collector"
+  output_path = "${path.module}/../../lambdas/cost_collector.zip"
+}
+
+# ── LAMBDA FUNCTION ────────────────────────────
 resource "aws_lambda_function" "cost_collector" {
   function_name = "cloudpilot-cost-collector"
   role          = aws_iam_role.lambda_exec.arn
   handler       = "handler.handler"
   runtime       = "python3.11"
   timeout       = 60
-  filename      = "${path.module}/../../lambdas/cost_collector.zip"
+
+  filename         = data.archive_file.cost_collector_zip.output_path
+  source_code_hash = data.archive_file.cost_collector_zip.output_base64sha256
 
   environment {
     variables = {
@@ -175,9 +208,11 @@ resource "aws_lambda_permission" "eventbridge" {
 output "cluster_name" {
   value = module.eks.cluster_name
 }
+
 output "cluster_endpoint" {
   value = module.eks.cluster_endpoint
 }
+
 output "configure_kubectl" {
   value = "aws eks update-kubeconfig --region ${var.aws_region} --name ${module.eks.cluster_name}"
 }
