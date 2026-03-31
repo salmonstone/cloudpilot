@@ -18,7 +18,6 @@ spec:
       containers:
       - name: elasticsearch
         image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
-
         ports:
         - containerPort: 9200
         - containerPort: 9300
@@ -27,17 +26,17 @@ spec:
         - name: discovery.type
           value: single-node
         - name: ES_JAVA_OPTS
-          value: "-Xms256m -Xmx256m"   # 🔥 reduced memory
+          value: "-Xms256m -Xmx256m"
         - name: xpack.security.enabled
           value: "false"
 
         resources:
           requests:
             cpu: 100m
-            memory: 512Mi     # 🔥 reduced (was 1Gi)
+            memory: 512Mi
           limits:
             cpu: 300m
-            memory: 1Gi       # 🔥 reduced (was 2Gi)
+            memory: 1Gi
 
         volumeMounts:
         - name: es-data
@@ -49,9 +48,10 @@ spec:
     spec:
       accessModes:
       - ReadWriteOnce
+      storageClassName: gp2-immediate   # ✅ CORRECT POSITION
       resources:
         requests:
-          storage: 10Gi   # 🔥 reduced from 20Gi
+          storage: 10Gi
 
 ---
 apiVersion: v1
