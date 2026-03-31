@@ -16,7 +16,7 @@ ingress:
     cert-manager.io/cluster-issuer: letsencrypt-prod
     nginx.ingress.kubernetes.io/ssl-redirect: 'true'
   hosts:
-    - host: cloudpilot.online
+    - host: pilotcost.online
       paths:
         - path: /api
           pathType: Prefix
@@ -26,7 +26,7 @@ ingress:
           pathType: Prefix
   tls:
     - secretName: cloudpilot-tls
-      hosts: [cloudpilot.online]
+      hosts: [pilotcost.online]
 
 resources:
   requests: { cpu: 150m, memory: 256Mi }
