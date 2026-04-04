@@ -91,7 +91,7 @@ pipeline {
             --repo https://kubernetes.github.io/ingress-nginx \
             --namespace ingress-nginx \
             --set controller.service.type=LoadBalancer \
-            --wait --timeout 5m || true
+            --wait --timeout 10m || true
           kubectl wait --namespace ingress-nginx \
             --for=condition=ready pod \
             --selector=app.kubernetes.io/component=controller \
@@ -152,7 +152,7 @@ pipeline {
             --set image.repository=${DOCKERHUB_REPO} \
             --set frontend.image.tag=${IMAGE_TAG} \
             --set frontend.image.repository=${FRONTEND_REPO} \
-            --atomic --wait --timeout 5m
+            --atomic --wait --timeout 10m
         '''
       }
     }
