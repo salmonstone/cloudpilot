@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 from pydantic import BaseModel
-import boto3, json, os
+import boto3, json
 from datetime import datetime
 
 router = APIRouter()
@@ -18,14 +18,11 @@ class ActionRequest(BaseModel):
 @router.post("/execute")
 def execute_action(req: ActionRequest):
     try:
-        # Invoke auto_fixer Lambda
         payload = {
-            "type":          req.type,
-            "resource":      req.resource,
+            "type": req.type,
+            "resource": req.resource,
             "monthly_saving": req.monthly_saving,
-            "target_type":   req.target_type,
-            "bucket":        req.bucket,
-            "key":           req.key
+            "target_type": req.target_type
         }
 
         response = lambda_client.invoke(
@@ -36,9 +33,7 @@ def execute_action(req: ActionRequest):
 
         result = json.loads(response['Payload'].read())
 
-        # Save to audit log
-        audit = dynamodb.Table('cloudpilot-audit')
-        audit.put_item(Item={
+        dynamodb.Table('cloudpilot-audit').put_item(Item={
             'id': f"audit-{datetime.now().timestamp()}",
             'timestamp': datetime.now().isoformat(),
             'action': req.type,
@@ -47,11 +42,7 @@ def execute_action(req: ActionRequest):
             'result': str(result)
         })
 
-        return {
-            "status": "success",
-            "result": result,
-            "saved": f"${req.monthly_saving}/month"
-        }
+        return {"status": "success", "result": result}
 
     except Exception as e:
         return {"status": "error", "error": str(e)}
@@ -60,10 +51,8 @@ def execute_action(req: ActionRequest):
 def get_audit():
     try:
         table = dynamodb.Table('cloudpilot-audit')
-        resp = table.scan()
-        items = sorted(resp['Items'],
-                      key=lambda x: x['timestamp'],
-                      reverse=True)
+        items = sorted(table.scan()['Items'],
+                      key=lambda x: x['timestamp'], reverse=True)
         return {"audit": items, "total": len(items)}
     except Exception as e:
         return {"audit": [], "error": str(e)}
