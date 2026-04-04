@@ -104,7 +104,7 @@ export default function App() {
                     type: r.type,
                     resource: r.resource,
                     monthly_saving: parseFloat(r.monthly_saving),
-                    target_type: r.suggested
+                    target_type: r.suggested || 't3.small'
                   })
                 });
                 const data = await resp.json();
