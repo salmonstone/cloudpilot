@@ -95,7 +95,21 @@ export default function App() {
             <div style={{color:'#8b949e',fontSize:13,marginTop:4}}>{r.reason}</div>
             <button
               style={{marginTop:10,background:'#1f6feb',color:'#fff',border:'none',borderRadius:6,padding:'6px 18px',cursor:'pointer',fontSize:12}}
-              onClick={() => alert(`Fix queued for ${r.resource}!\nSaving: $${r.monthly_saving}/mo`)}
+              onClick={async () => {
+                if(!window.confirm(`Apply fix for ${r.resource}?\nThis will stop/resize/restart the instance.\nSave $${r.monthly_saving}/mo`)) return;
+                const resp = await fetch(`${API}/api/actions/execute`, {
+                  method: 'POST',
+                  headers: {'Content-Type': 'application/json'},
+                  body: JSON.stringify({
+                    type: r.type,
+                    resource: r.resource,
+                    monthly_saving: parseFloat(r.monthly_saving),
+                    target_type: r.suggested
+                  })
+                });
+                const data = await resp.json();
+                alert(data.result || data.error || 'Fix applied!');
+              }}
             >
               ⚡ Apply Fix — Save ${r.monthly_saving}/mo
             </button>
