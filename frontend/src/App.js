@@ -3,32 +3,35 @@ import { useState, useEffect } from 'react';
 const API = 'http://www.pilotcost.online';
 
 export default function App() {
-  const [health, setHealth]   = useState(null);
-  const [recs, setRecs]       = useState([]);
-  const [costs, setCosts]     = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [health, setHealth]     = useState(null);
+  const [recs, setRecs]         = useState([]);
+  const [costs, setCosts]       = useState([]);
+  const [loading, setLoading]   = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
-    // Fetch health
+  const fetchData = () => {
     fetch(`${API}/health`)
-      .then(r => r.json())
-      .then(setHealth)
-      .catch(() => setHealth(null));
+      .then(r => r.json()).then(setHealth).catch(() => setHealth(null));
 
-    // Fetch recommendations
     fetch(`${API}/api/recommendations`)
       .then(r => r.json())
       .then(d => { setRecs(d.recommendations || []); setLoading(false); })
       .catch(() => setLoading(false));
 
-    // Fetch costs
     fetch(`${API}/api/costs/summary`)
       .then(r => r.json())
-      .then(d => setCosts(d.costs || []))
-      .catch(() => {});
-  }, []);
+      .then(d => setCosts(d.costs || [])).catch(() => {});
+  };
 
-  const totalSaving = recs.reduce((sum, r) => sum + (parseFloat(r.monthly_saving) || 0), 0);
+  const refreshData = async () => {
+    setRefreshing(true);
+    await fetch(`${API}/api/recommendations/refresh`, { method: 'POST' });
+    setTimeout(() => { fetchData(); setRefreshing(false); }, 2000);
+  };
+
+  useEffect(() => { fetchData(); }, []);
+
+  const totalSaving = recs.reduce((s, r) => s + (parseFloat(r.monthly_saving) || 0), 0);
 
   return (
     <div style={{background:'#0d1117',minHeight:'100vh',color:'#e6edf3',fontFamily:'monospace',padding:'24px'}}>
@@ -68,12 +71,20 @@ export default function App() {
 
       {/* Recommendations */}
       <div style={{background:'#161b22',border:'1px solid #30363d',borderRadius:12,padding:20,marginBottom:24}}>
-        <h2 style={{color:'#58a6ff',marginTop:0,fontSize:16,marginBottom:16}}>
-          🤖 AI Recommendations — live from backend
-        </h2>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16}}>
+          <h2 style={{color:'#58a6ff',margin:0,fontSize:16}}>🤖 AI Recommendations — live from backend</h2>
+          <button
+            onClick={refreshData}
+            disabled={refreshing}
+            style={{background:'#1f6feb',color:'#fff',border:'none',borderRadius:6,padding:'6px 16px',cursor:'pointer',fontSize:12,fontFamily:'monospace'}}
+          >
+            {refreshing ? '⏳ Refreshing...' : '🔄 Refresh AI'}
+          </button>
+        </div>
+
         {loading && <p style={{color:'#8b949e'}}>⏳ Loading...</p>}
-        {!loading && recs.length === 0 &&
-          <p style={{color:'#8b949e'}}>No recommendations yet.</p>}
+        {!loading && recs.length === 0 && <p style={{color:'#8b949e'}}>No recommendations yet.</p>}
+
         {recs.map(r => (
           <div key={r.id} style={{background:'#0d1117',border:'1px solid #30363d',borderRadius:8,padding:16,marginBottom:12}}>
             <div style={{display:'flex',justifyContent:'space-between'}}>
@@ -84,7 +95,7 @@ export default function App() {
             <div style={{color:'#8b949e',fontSize:13,marginTop:4}}>{r.reason}</div>
             <button
               style={{marginTop:10,background:'#1f6feb',color:'#fff',border:'none',borderRadius:6,padding:'6px 18px',cursor:'pointer',fontSize:12}}
-              onClick={() => alert(`Fix applied for ${r.resource}!`)}
+              onClick={() => alert(`Fix queued for ${r.resource}!\nSaving: $${r.monthly_saving}/mo`)}
             >
               ⚡ Apply Fix — Save ${r.monthly_saving}/mo
             </button>
@@ -94,7 +105,15 @@ export default function App() {
 
       {/* Cost Breakdown */}
       <div style={{background:'#161b22',border:'1px solid #30363d',borderRadius:12,padding:20,marginBottom:24}}>
-        <h2 style={{color:'#58a6ff',marginTop:0,fontSize:16}}>💰 AWS Cost Breakdown</h2>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
+          <h2 style={{color:'#58a6ff',margin:0,fontSize:16}}>💰 AWS Cost Breakdown</h2>
+          <button
+            onClick={fetchData}
+            style={{background:'#161b22',color:'#8b949e',border:'1px solid #30363d',borderRadius:6,padding:'4px 12px',cursor:'pointer',fontSize:11}}
+          >
+            🔄 Refresh
+          </button>
+        </div>
         {costs.length === 0
           ? <p style={{color:'#8b949e',fontSize:13}}>⏳ Fetching cost data...</p>
           : costs.map((c,i) => (
@@ -110,7 +129,7 @@ export default function App() {
       <div style={{background:'#161b22',border:'1px solid #30363d',borderRadius:12,padding:20}}>
         <h2 style={{color:'#58a6ff',marginTop:0,fontSize:16}}>🔌 Backend Status</h2>
         <pre style={{color:'#3fb950',fontSize:13,margin:0}}>
-          {health ? JSON.stringify(health, null, 2) : '⏳ Connecting to backend...'}
+          {health ? JSON.stringify(health, null, 2) : '⏳ Connecting...'}
         </pre>
       </div>
 
