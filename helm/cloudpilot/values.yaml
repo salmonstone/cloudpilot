@@ -33,3 +33,24 @@ env:
         key: GROQ_API_KEY
   - name: AWS_DEFAULT_REGION
     value: ap-south-1
+
+ingress:
+  enabled: true
+  className: nginx
+
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+
+  hosts:
+    - host: www.pilotcost.com
+      paths:
+        - path: /
+          pathType: Prefix
+        - path: /api
+          pathType: Prefix
+        - path: /health
+          pathType: Prefix
+        - path: /metrics
+          pathType: Prefix
+        - path: /docs
+          pathType: Prefix
