@@ -42,7 +42,7 @@ ingress:
     nginx.ingress.kubernetes.io/proxy-body-size: "10m"
 
   hosts:
-    - host: www.pilotcost.com
+    - host: www.pilotcost.online
       paths:
         - path: /
           pathType: Prefix
