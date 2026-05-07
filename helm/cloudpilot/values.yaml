@@ -37,20 +37,4 @@ env:
 ingress:
   enabled: true
   className: nginx
-
-  annotations:
-    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
-
-  hosts:
-    - host: www.pilotcost.online
-      paths:
-        - path: /
-          pathType: Prefix
-        - path: /api
-          pathType: Prefix
-        - path: /health
-          pathType: Prefix
-        - path: /metrics
-          pathType: Prefix
-        - path: /docs
-          pathType: Prefix
+  host: www.pilotcost.online
