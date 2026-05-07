@@ -1,43 +1,57 @@
-rules:
-  - host: www.pilotcost.com
-    http:
-      paths:
-      - path: /api
-        pathType: Prefix
-        backend:
-          service:
-            name: {{ .Release.Name }}-backend
-            port:
-              number: 8000
+apiVersion: networking.k8s.io/v1
+kind: Ingress
 
-      - path: /health
-        pathType: Prefix
-        backend:
-          service:
-            name: {{ .Release.Name }}-backend
-            port:
-              number: 8000
+metadata:
+  name: {{ .Release.Name }}-ingress
+  namespace: {{ .Release.Namespace }}
 
-      - path: /metrics
-        pathType: Prefix
-        backend:
-          service:
-            name: {{ .Release.Name }}-backend
-            port:
-              number: 8000
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
 
-      - path: /docs
-        pathType: Prefix
-        backend:
-          service:
-            name: {{ .Release.Name }}-backend
-            port:
-              number: 8000
+spec:
+  ingressClassName: nginx
 
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: {{ .Release.Name }}-frontend
-            port:
-              number: 80
+  rules:
+    - host: www.pilotcost.com
+      http:
+        paths:
+
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ .Release.Name }}-backend
+                port:
+                  number: 8000
+
+          - path: /health
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ .Release.Name }}-backend
+                port:
+                  number: 8000
+
+          - path: /metrics
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ .Release.Name }}-backend
+                port:
+                  number: 8000
+
+          - path: /docs
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ .Release.Name }}-backend
+                port:
+                  number: 8000
+
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ .Release.Name }}-frontend
+                port:
+                  number: 80
