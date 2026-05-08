@@ -2,12 +2,36 @@ import { useState, useEffect } from 'react';
 
 const API = 'http://www.pilotcost.online';
 
+function CopyButton({ text }) {
+  const [copied, setCopied] = useState(false);
+  const copy = () => { navigator.clipboard.writeText(String(text)); setCopied(true); setTimeout(() => setCopied(false), 1500); };
+  return <button onClick={copy} className="copy-btn">{copied ? '✓ Copied' : '⎘ Copy'}</button>;
+}
+
+function Section({ title, icon, children, copyText }) {
+  return (
+    <div className="section">
+      <div className="section-header">
+        <h2>{icon} {title}</h2>
+        {copyText && <CopyButton text={copyText} />}
+      </div>
+      <div className="section-body">{children}</div>
+    </div>
+  );
+}
+
+function Badge({ text, color }) {
+  const colors = { HIGH:'#ff4757',CRITICAL:'#ff2f2f',MEDIUM:'#ffa502',LOW:'#2ed573',green:'#2ed573',blue:'#1e90ff',purple:'#a29bfe' };
+  return <span className="badge" style={{background:colors[color]||colors[text]||'#444'}}>{String(text||'')}</span>;
+}
+
 export default function App() {
   const [health, setHealth]     = useState(null);
   const [recs, setRecs]         = useState([]);
   const [costs, setCosts]       = useState([]);
   const [loading, setLoading]   = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [error, setError]       = useState('');
 
   const fetchData = () => {
     fetch(`${API}/health`)
@@ -15,18 +39,28 @@ export default function App() {
 
     fetch(`${API}/api/recommendations`)
       .then(r => r.json())
-      .then(d => { setRecs(d.recommendations || []); setLoading(false); })
+      .then(d => {
+        const items = Array.isArray(d.recommendations) ? d.recommendations : [];
+        setRecs(items);
+        setLoading(false);
+      })
       .catch(() => setLoading(false));
 
     fetch(`${API}/api/costs/summary`)
       .then(r => r.json())
-      .then(d => setCosts(d.costs || [])).catch(() => {});
+      .then(d => {
+        const items = Array.isArray(d.costs) ? d.costs : [];
+        setCosts(items);
+      })
+      .catch(() => {});
   };
 
   const refreshData = async () => {
     setRefreshing(true);
-    await fetch(`${API}/api/recommendations/refresh`, { method: 'POST' });
-    setTimeout(() => { fetchData(); setRefreshing(false); }, 2000);
+    try {
+      await fetch(`${API}/api/recommendations/refresh`, { method: 'POST' });
+      setTimeout(() => { fetchData(); setRefreshing(false); }, 2000);
+    } catch(e) { setRefreshing(false); }
   };
 
   useEffect(() => { fetchData(); }, []);
@@ -35,118 +69,89 @@ export default function App() {
 
   return (
     <div style={{background:'#0d1117',minHeight:'100vh',color:'#e6edf3',fontFamily:'monospace',padding:'24px'}}>
-
-      {/* Header */}
       <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:32,borderBottom:'1px solid #30363d',paddingBottom:16}}>
-        <span style={{fontSize:36}}>☁</span>
+        <span style={{fontSize:32}}>☁</span>
         <div>
-          <h1 style={{margin:0,color:'#58a6ff',fontSize:28}}>CloudPilot</h1>
-          <p style={{margin:0,color:'#8b949e',fontSize:13}}>AI-Powered Cloud Cost Optimization — pilotcost.online</p>
+          <h1 style={{margin:0,color:'#58a6ff',fontSize:26}}>CloudPilot</h1>
+          <p style={{margin:0,color:'#8b949e',fontSize:12}}>AI-Powered Cloud Cost Optimization — pilotcost.online</p>
         </div>
-        <span style={{marginLeft:'auto',background:health?'#1e4620':'#2d1f1f',color:health?'#3fb950':'#f78166',padding:'4px 16px',borderRadius:20,fontSize:12}}>
+        <span style={{marginLeft:'auto',background:health?'#1e4620':'#2d1f1f',color:health?'#3fb950':'#f78166',padding:'4px 14px',borderRadius:20,fontSize:12}}>
           {health ? '● Online' : '● Offline'}
         </span>
       </div>
 
-      {/* Stats */}
       <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:16,marginBottom:32}}>
         <div style={{background:'#161b22',border:'1px solid #30363d',borderRadius:12,padding:20}}>
           <div style={{color:'#8b949e',fontSize:12,marginBottom:8}}>Total Potential Savings</div>
-          <div style={{color:'#3fb950',fontSize:36,fontWeight:700}}>${totalSaving.toFixed(2)}</div>
+          <div style={{color:'#3fb950',fontSize:34,fontWeight:700}}>${totalSaving.toFixed(2)}</div>
           <div style={{color:'#8b949e',fontSize:12}}>per month — AI identified</div>
         </div>
         <div style={{background:'#161b22',border:'1px solid #30363d',borderRadius:12,padding:20}}>
           <div style={{color:'#8b949e',fontSize:12,marginBottom:8}}>Recommendations</div>
-          <div style={{color:'#58a6ff',fontSize:36,fontWeight:700}}>{recs.length}</div>
+          <div style={{color:'#58a6ff',fontSize:34,fontWeight:700}}>{recs.length}</div>
           <div style={{color:'#8b949e',fontSize:12}}>issues found</div>
         </div>
         <div style={{background:'#161b22',border:'1px solid #30363d',borderRadius:12,padding:20}}>
           <div style={{color:'#8b949e',fontSize:12,marginBottom:8}}>Auto-Fixable</div>
-          <div style={{color:'#f78166',fontSize:36,fontWeight:700}}>
-            {recs.filter(r => r.auto_fixable).length}
-          </div>
+          <div style={{color:'#f78166',fontSize:34,fontWeight:700}}>{recs.filter(r=>r.auto_fixable).length}</div>
           <div style={{color:'#8b949e',fontSize:12}}>one-click fixes</div>
         </div>
       </div>
 
-      {/* Recommendations */}
       <div style={{background:'#161b22',border:'1px solid #30363d',borderRadius:12,padding:20,marginBottom:24}}>
         <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16}}>
-          <h2 style={{color:'#58a6ff',margin:0,fontSize:16}}>🤖 AI Recommendations — live from backend</h2>
-          <button
-            onClick={refreshData}
-            disabled={refreshing}
-            style={{background:'#1f6feb',color:'#fff',border:'none',borderRadius:6,padding:'6px 16px',cursor:'pointer',fontSize:12,fontFamily:'monospace'}}
-          >
+          <h2 style={{color:'#58a6ff',margin:0,fontSize:15}}>🤖 AI Recommendations</h2>
+          <button onClick={refreshData} disabled={refreshing}
+            style={{background:'#1f6feb',color:'#fff',border:'none',borderRadius:6,padding:'6px 14px',cursor:'pointer',fontSize:12}}>
             {refreshing ? '⏳ Refreshing...' : '🔄 Refresh AI'}
           </button>
         </div>
-
         {loading && <p style={{color:'#8b949e'}}>⏳ Loading...</p>}
-        {!loading && recs.length === 0 && <p style={{color:'#8b949e'}}>No recommendations yet.</p>}
-
-        {recs.map(r => (
-          <div key={r.id} style={{background:'#0d1117',border:'1px solid #30363d',borderRadius:8,padding:16,marginBottom:12}}>
+        {!loading && recs.length === 0 && <p style={{color:'#8b949e'}}>No recommendations yet. Click Refresh AI.</p>}
+        {recs.map((r, i) => (
+          <div key={i} style={{background:'#0d1117',border:'1px solid #30363d',borderRadius:8,padding:16,marginBottom:12}}>
             <div style={{display:'flex',justifyContent:'space-between'}}>
-              <span style={{color:'#e6edf3',fontWeight:600}}>{r.resource}</span>
-              <span style={{color:'#3fb950',fontWeight:700}}>${parseFloat(r.monthly_saving).toFixed(2)}/mo</span>
+              <span style={{color:'#e6edf3',fontWeight:600}}>{String(r.resource||'')}</span>
+              <span style={{color:'#3fb950',fontWeight:700}}>${parseFloat(r.monthly_saving||0).toFixed(2)}/mo</span>
             </div>
-            <div style={{color:'#58a6ff',fontSize:12,marginTop:4}}>{r.current} → {r.suggested}</div>
-            <div style={{color:'#8b949e',fontSize:13,marginTop:4}}>{r.reason}</div>
+            <div style={{color:'#58a6ff',fontSize:12,marginTop:4}}>{String(r.current||'')} → {String(r.suggested||'')}</div>
+            <div style={{color:'#8b949e',fontSize:13,marginTop:4}}>{String(r.reason||'')}</div>
             <button
-              style={{marginTop:10,background:'#1f6feb',color:'#fff',border:'none',borderRadius:6,padding:'6px 18px',cursor:'pointer',fontSize:12}}
+              style={{marginTop:10,background:'#1f6feb',color:'#fff',border:'none',borderRadius:6,padding:'6px 16px',cursor:'pointer',fontSize:12}}
               onClick={async () => {
-                if(!window.confirm(`Apply fix for ${r.resource}?\nThis will stop/resize/restart the instance.\nSave $${r.monthly_saving}/mo`)) return;
+                if(!window.confirm(`Apply fix for ${r.resource}?`)) return;
                 const resp = await fetch(`${API}/api/actions/execute`, {
-                  method: 'POST',
-                  headers: {'Content-Type': 'application/json'},
-                  body: JSON.stringify({
-                    type: r.type,
-                    resource: r.resource,
-                    monthly_saving: parseFloat(r.monthly_saving),
-                    target_type: r.suggested || 't3.small'
-                  })
+                  method:'POST', headers:{'Content-Type':'application/json'},
+                  body: JSON.stringify({type:r.type,resource:r.resource,monthly_saving:parseFloat(r.monthly_saving||0),target_type:r.suggested||'t3.small'})
                 });
                 const data = await resp.json();
-                alert(data.result || data.error || 'Fix applied!');
-              }}
-            >
-              ⚡ Apply Fix — Save ${r.monthly_saving}/mo
+                alert(data.result?.result || data.error || 'Fix applied!');
+              }}>
+              ⚡ Apply Fix — Save ${parseFloat(r.monthly_saving||0).toFixed(2)}/mo
             </button>
           </div>
         ))}
       </div>
 
-      {/* Cost Breakdown */}
       <div style={{background:'#161b22',border:'1px solid #30363d',borderRadius:12,padding:20,marginBottom:24}}>
-        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
-          <h2 style={{color:'#58a6ff',margin:0,fontSize:16}}>💰 AWS Cost Breakdown</h2>
-          <button
-            onClick={fetchData}
-            style={{background:'#161b22',color:'#8b949e',border:'1px solid #30363d',borderRadius:6,padding:'4px 12px',cursor:'pointer',fontSize:11}}
-          >
-            🔄 Refresh
-          </button>
-        </div>
+        <h2 style={{color:'#58a6ff',marginTop:0,fontSize:15}}>💰 AWS Cost Breakdown</h2>
         {costs.length === 0
-          ? <p style={{color:'#8b949e',fontSize:13}}>⏳ Fetching cost data...</p>
+          ? <p style={{color:'#8b949e',fontSize:13}}>⏳ Loading cost data...</p>
           : costs.map((c,i) => (
             <div key={i} style={{display:'flex',justifyContent:'space-between',padding:'8px 0',borderBottom:'1px solid #21262d'}}>
-              <span style={{color:'#e6edf3',fontSize:13}}>{c.service}</span>
-              <span style={{color:'#f78166',fontWeight:600}}>${c.cost}/mo</span>
+              <span style={{color:'#e6edf3',fontSize:13}}>{String(c.service||c.Service||'')}</span>
+              <span style={{color:'#f78166',fontWeight:600}}>${String(c.cost||c.Cost||0)}/mo</span>
             </div>
           ))
         }
       </div>
 
-      {/* Backend Status */}
       <div style={{background:'#161b22',border:'1px solid #30363d',borderRadius:12,padding:20}}>
-        <h2 style={{color:'#58a6ff',marginTop:0,fontSize:16}}>🔌 Backend Status</h2>
-        <pre style={{color:'#3fb950',fontSize:13,margin:0}}>
+        <h2 style={{color:'#58a6ff',marginTop:0,fontSize:15}}>🔌 Backend Status</h2>
+        <pre style={{color:'#3fb950',fontSize:12,margin:0}}>
           {health ? JSON.stringify(health, null, 2) : '⏳ Connecting...'}
         </pre>
       </div>
-
     </div>
   );
 }

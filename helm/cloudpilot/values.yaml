@@ -6,7 +6,7 @@ image:
 frontend:
   image:
     repository: salmonstone/cloudpilot-frontend
-    tag: latest
+    tag: "8"
 
 replicaCount: 2
 
