@@ -7,45 +7,63 @@ metadata:
   annotations:
     nginx.ingress.kubernetes.io/proxy-body-size: "10m"
     nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
+    cert-manager.io/cluster-issuer: {{ .Values.ingress.clusterIssuer | default "letsencrypt-prod" }}
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
 spec:
   ingressClassName: {{ .Values.ingress.className }}
+  tls:
+  - hosts:
+    {{- range .Values.ingress.tlsHosts | default (list .Values.ingress.host) }}
+    - {{ . | quote }}
+    {{- end }}
+    secretName: {{ .Values.ingress.tlsSecretName | default (printf "%s-tls" .Release.Name) }}
   rules:
-  - host: {{ .Values.ingress.host }}
+  {{- range .Values.ingress.tlsHosts | default (list .Values.ingress.host) }}
+  - host: {{ . | quote }}
     http:
       paths:
       - path: /api
         pathType: Prefix
         backend:
           service:
-            name: {{ .Release.Name }}-backend
+            name: {{ $.Release.Name }}-backend
             port:
               number: 8000
       - path: /health
         pathType: Prefix
         backend:
           service:
-            name: {{ .Release.Name }}-backend
+            name: {{ $.Release.Name }}-backend
             port:
               number: 8000
       - path: /metrics
         pathType: Prefix
         backend:
           service:
-            name: {{ .Release.Name }}-backend
+            name: {{ $.Release.Name }}-backend
             port:
               number: 8000
       - path: /docs
         pathType: Prefix
         backend:
           service:
-            name: {{ .Release.Name }}-backend
+            name: {{ $.Release.Name }}-backend
+            port:
+              number: 8000
+      - path: /openapi.json
+        pathType: Prefix
+        backend:
+          service:
+            name: {{ $.Release.Name }}-backend
             port:
               number: 8000
       - path: /
         pathType: Prefix
         backend:
           service:
-            name: {{ .Release.Name }}-frontend
+            name: {{ $.Release.Name }}-frontend
             port:
               number: 80
+  {{- end }}
 {{- end }}

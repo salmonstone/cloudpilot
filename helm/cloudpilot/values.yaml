@@ -38,3 +38,7 @@ ingress:
   enabled: true
   className: nginx
   host: www.pilotcost.online
+  clusterIssuer: letsencrypt-staging
+  tlsHosts:
+    - www.pilotcost.online
+  tlsSecretName: cloudpilot-tls

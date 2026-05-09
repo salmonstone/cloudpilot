@@ -15,14 +15,25 @@ class ActionRequest(BaseModel):
     bucket: str = ""
     key: str = ""
 
+# Map AI-generated recommendation types to the Lambda's action handlers.
+TYPE_MAP = {
+    'resize': 'resize_ec2',
+    'rightsizing': 'resize_ec2',
+    'delete': 'delete_ebs',
+    'storage_class': 'change_s3_storage_class',
+}
+
 @router.post("/execute")
 def execute_action(req: ActionRequest):
     try:
+        action_type = TYPE_MAP.get(req.type, req.type)
         payload = {
-            "type": req.type,
+            "type": action_type,
             "resource": req.resource,
             "monthly_saving": req.monthly_saving,
-            "target_type": req.target_type
+            "target_type": req.target_type,
+            "bucket": req.bucket,
+            "key": req.key,
         }
 
         response = lambda_client.invoke(

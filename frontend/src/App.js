@@ -63,7 +63,12 @@ export default function App() {
     } catch(e) { setRefreshing(false); }
   };
 
-  useEffect(() => { fetchData(); }, []);
+  useEffect(() => {
+    fetchData();
+    // Auto-refresh every 30 minutes
+    const interval = setInterval(fetchData, 30 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   const totalSaving = recs.reduce((s, r) => s + (parseFloat(r.monthly_saving) || 0), 0);
 
